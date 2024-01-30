@@ -1,0 +1,249 @@
+#!/usr/bin/env python3
+import os
+import getopt, sys
+import glob
+from typing import List
+from multiprocessing import Pool
+from tqdm import tqdm
+import nltk
+
+nltk.download('punkt')
+
+from langchain.document_loaders import (
+    CSVLoader,
+    EverNoteLoader,
+    PyMuPDFLoader,
+    TextLoader,
+    UnstructuredEmailLoader,
+    UnstructuredEPubLoader,
+    UnstructuredHTMLLoader,
+    UnstructuredMarkdownLoader,
+    UnstructuredODTLoader,
+    UnstructuredPowerPointLoader,
+    UnstructuredWordDocumentLoader,
+    UnstructuredExcelLoader,
+)
+
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.llms import Ollama
+from langchain.embeddings.ollama import OllamaEmbeddings
+from langchain.vectorstores import Chroma
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.docstore.document import Document
+#from constants import CHROMA_SETTINGS
+from chromadb.config import Settings
+
+# Remove 1st argument from the
+# list of command line arguments
+#argumentList = sys.argv[1:]
+ 
+# Options
+#options = "hmcoupds:"
+ 
+# Long options
+#long_options = ["Help", "MODELNAME","CHUNKSIZE","CHUNKOVERLAP","OLLAMAURL","OLLAMAPORTNO","PERSISTDIR"]
+
+# Define the folder for storing database
+MODELNAME = sys.argv[1] #"mistral"
+CHUNKSIZE = sys.argv[2] #1500
+CHUNKOVERLAP = sys.argv[3] #50
+OLLAMAURL = sys.argv[4] #"http://localhost"
+OLLAMAPORTNO = sys.argv[5] #"11434"
+PERSISTDIR = sys.argv[6] #"/mnt/data"
+SOURCEDIR = sys.argv[7] #"/mnt/docs"
+
+print(("Ollama Server URL is %s\n") % (OLLAMAURL))
+
+
+# Define the Chroma settings
+CHROMA_SETTINGS = Settings(
+        persist_directory=PERSISTDIR,
+        anonymized_telemetry=False
+)
+
+# Load environment variables
+persist_directory = PERSISTDIR #'/mnt/data'
+source_directory = SOURCEDIR #'/mnt/docs'
+#embeddings_model_name = 'all-MiniLM-L6-v2' # os.environ.get('EMBEDDINGS_MODEL_NAME', 'all-MiniLM-L6-v2')
+chunk_size = CHUNKSIZE #1500
+chunk_overlap = CHUNKOVERLAP #50
+
+# Custom document loaders
+class MyElmLoader(UnstructuredEmailLoader):
+    """Wrapper to fallback to text/plain when default does not work"""
+
+    def load(self) -> List[Document]:
+        """Wrapper adding fallback for elm without html"""
+        try:
+            try:
+                doc = UnstructuredEmailLoader.load(self)
+            except ValueError as e:
+                if 'text/html content not found in email' in str(e):
+                    # Try plain text
+                    self.unstructured_kwargs["content_source"]="text/plain"
+                    doc = UnstructuredEmailLoader.load(self)
+                else:
+                    raise
+        except Exception as e:
+            # Add file_path to exception message
+            raise type(e)(f"{self.file_path}: {e}") from e
+
+        return doc
+
+
+# Map file extensions to document loaders and their arguments
+LOADER_MAPPING = {
+    ".csv": (CSVLoader, {}),
+    # ".docx": (Docx2txtLoader, {}),
+    ".doc": (UnstructuredWordDocumentLoader, {}),
+    ".docx": (UnstructuredWordDocumentLoader, {}),
+    ".enex": (EverNoteLoader, {}),
+    ".eml": (MyElmLoader, {}),
+    ".epub": (UnstructuredEPubLoader, {}),
+    ".html": (UnstructuredHTMLLoader, {}),
+    ".md": (UnstructuredMarkdownLoader, {}),
+    ".odt": (UnstructuredODTLoader, {}),
+    ".pdf": (PyMuPDFLoader, {}),
+    ".ppt": (UnstructuredPowerPointLoader, {}),
+    ".pptx": (UnstructuredPowerPointLoader, {}),
+    ".txt": (TextLoader, {"encoding": "utf8"}),
+    ".xlsx": (UnstructuredExcelLoader, {}),
+    ".xls": (UnstructuredExcelLoader, {}),
+    # Add more mappings for other file extensions and loaders as needed
+}
+
+
+def load_single_document(file_path: str) -> List[Document]:
+    ext = "." + file_path.rsplit(".", 1)[-1]
+    if ext in LOADER_MAPPING:
+        loader_class, loader_args = LOADER_MAPPING[ext]
+        loader = loader_class(file_path, **loader_args)
+        return loader.load()
+
+    raise ValueError(f"Unsupported file extension '{ext}'")
+
+def load_documents(source_dir: str, ignored_files: List[str] = []) -> List[Document]:
+    """
+    Loads all documents from the source documents directory, ignoring specified files
+    """
+    all_files = []
+    for ext in LOADER_MAPPING:
+        all_files.extend(
+            glob.glob(os.path.join(source_dir, f"**/*{ext}"), recursive=True)
+        )
+    filtered_files = [file_path for file_path in all_files if file_path not in ignored_files]
+
+    with Pool(processes=os.cpu_count()) as pool:
+        results = []
+        with tqdm(total=len(filtered_files), desc='Loading new documents', ncols=80) as pbar:
+            for i, docs in enumerate(pool.imap_unordered(load_single_document, filtered_files)):
+                results.extend(docs)
+                pbar.update()
+
+    return results
+
+def process_documents(ignored_files: List[str] = []) -> List[Document]:
+    """
+    Load documents and split in chunks
+    """
+    print(f"Loading documents from {source_directory}")
+    documents = load_documents(source_directory, ignored_files)
+    if not documents:
+        print("No new documents to load")
+        exit(0)
+    print(f"Loaded {len(documents)} new documents from {source_directory}")
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500,chunk_overlap=200,length_function=len)
+    texts = text_splitter.split_documents(documents)
+    #text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+    #texts = text_splitter.split_documents(documents)
+    print(f"Split into {len(texts)} chunks of text (max. {chunk_size} tokens each)")
+    return texts
+    
+
+def does_vectorstore_exist(persist_directory: str) -> bool:
+    """
+    Checks if vectorstore exists
+    """
+    if os.path.exists(os.path.join(persist_directory, 'index')):
+        if os.path.exists(os.path.join(persist_directory, 'chroma-collections.parquet')) and os.path.exists(os.path.join(persist_directory, 'chroma-embeddings.parquet')):
+            list_index_files = glob.glob(os.path.join(persist_directory, 'index/*.bin'))
+            list_index_files += glob.glob(os.path.join(persist_directory, 'index/*.pkl'))
+            # At least 3 documents are needed in a working vectorstore
+            if len(list_index_files) > 3:
+                return True
+    return False
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description='privateGPT: Ask questions to your documents without an internet connection, '
+                                                 'using the power of LLMs.')
+    parser.add_argument("--hide-source", "-S", action='store_true',
+                        help='Use this flag to disable printing of source documents used for answers.')
+
+    parser.add_argument("--mute-stream", "-M",
+                        action='store_true',
+                        help='Use this flag to disable the streaming StdOut callback for LLMs.')
+
+    return parser.parse_args()
+
+
+def main():
+    # Create embeddings
+    #embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name)
+    BASEURL = OLLAMAURL + ":" + OLLAMAPORTNO
+    oembed = OllamaEmbeddings(base_url=BASEURL, model=MODELNAME)
+
+    if does_vectorstore_exist(persist_directory):
+        # Update and store locally vectorstore
+        print(f"Appending to existing vectorstore at {persist_directory}")
+        #db = Chroma(persist_directory=persist_directory, embedding_function=embeddings, client_settings=CHROMA_SETTINGS)
+        db = Chroma.from_documents(embedding=oembed,client_settings=CHROMA_SETTINGS)
+        collection = db.get()
+        texts = process_documents([metadata['source'] for metadata in collection['metadatas']])
+        print(f"Creating embeddings. May take some minutes...")
+        db.add_documents(texts)
+    else:
+        # Create and store locally vectorstore
+        print("Creating new vectorstore")
+        texts = process_documents()
+        print(f"Creating embeddings. May take some minutes...")
+        #db = Chroma.from_documents(texts, embeddings, persist_directory=persist_directory)
+        db = Chroma.from_documents(documents=texts,embedding=oembed,client_settings=CHROMA_SETTINGS)
+    db.persist()
+    
+
+    print(f"Ingestion complete! You can now run Chat with your documents")
+
+    retriever = db.as_retriever(search_kwargs={"k": CHUNKSIZE})
+    # activate/deactivate the streaming StdOut callback for LLMs
+    callbacks = [] if args.mute_stream else [StreamingStdOutCallbackHandler()]
+
+    llm = Ollama(model=MODELNAME, callbacks=callbacks)
+
+    qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= not args.hide_source)
+    # Interactive questions and answers
+    while True:
+        query = input("\nEnter a query: ")
+        if query == "exit":
+            break
+        if query.strip() == "":
+            continue
+
+        # Get the answer from the chain
+        start = time.time()
+        res = qa(query)
+        answer, docs = res['result'], [] if args.hide_source else res['source_documents']
+        end = time.time()
+
+        # Print the result
+        print("\n\n> Question:")
+        print(query)
+        print(answer)
+
+        # Print the relevant sources used for the answer
+        for document in docs:
+            print("\n> " + document.metadata["source"] + ":")
+            print(document.page_content)
+
+
+if __name__ == "__main__":
+    main()

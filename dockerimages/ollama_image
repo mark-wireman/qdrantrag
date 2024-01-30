@@ -1,0 +1,10 @@
+FROM ollama/ollama
+EXPOSE 11434/TCP
+RUN apt update
+RUN apt install cifs-utils -y
+RUN mkdir /home/app
+RUN mkdir /mnt/ollama
+RUN mkdir /mnt/data
+COPY scripts/ollama.sh /home/app/ollama.sh
+RUN chmod +x /home/app/ollama.sh
+ENTRYPOINT ["/bin/bash","-c", "/home/app/ollama.sh"]
