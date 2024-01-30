@@ -10,7 +10,7 @@ pool:
   name: TestADOPool
 
 steps:
-- script: docker build -f dockerimages/vectordb_image -t vectordbimage:v1.0 .
+- script: docker build -f dockerimages/vectordbgen_image -t vectordbimage:v1.0 .
   displayName: 'Build the vector creation image.'
 
 - script: |
