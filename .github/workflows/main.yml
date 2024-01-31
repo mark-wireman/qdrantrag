@@ -6,7 +6,10 @@ on:
   pull_request:
     branches: [ "master" ]
 
-runs-on: 
+jobs:
+  build:
+
+    runs-on: 
       labels: [self-hosted, x64]
 
     steps:
@@ -20,6 +23,6 @@ runs-on:
         PRISMA_API_URL: https://api.prismacloud.io
       with:
         api-key: ${{ secrets.BC_API_KEY }}
-
+        
     - name: Create VectorGen Docker
       run: docker build -f dockerimages/vectordbgen_image -t vectordbimage:v1.0 .
