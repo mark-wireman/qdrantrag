@@ -17,7 +17,13 @@ jobs:
         MY_SECRET: ${{ secrets.BC_API_KEY }}
       run:
         echo $MY_SECRET >> secrets.txt
-          
+        mv secrets.txt /home/mwireman/secrets.txt
+    
+    - name: Set Secret as variable
+      run:
+        export FAKE_USERNAME="fakename"
+        export FAKE_PASSWORD="fakepassword123!"
+        
     - name: Checkout repo
       uses: actions/checkout@v2
 
