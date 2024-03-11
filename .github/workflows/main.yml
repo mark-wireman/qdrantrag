@@ -12,6 +12,12 @@ jobs:
       labels: [self-hosted, x64]
 
     steps:
+    - name: Set up secret file
+      env:
+        MY_SECRET: ${{ secrets.BC_API_KEY }}
+      run:
+        echo $MY_SECRET >> secrets.txt
+          
     - name: Checkout repo
       uses: actions/checkout@v2
 
