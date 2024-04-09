@@ -35,7 +35,6 @@ jobs:
         api-key: ${{ secrets.BC_API_KEY }}
         framework: sca_package
         output_format: cyclonedx
-        output_file_path: sbom_results
         soft_fail_on: true
         hard_fail_on: false
         
@@ -54,12 +53,12 @@ jobs:
         name: pass_status_build
         path: status_build.txt
 
-    - name: Upload file status_build.txt as an artifact
+    - name: Upload SBOM results file as an artifact
       if: always()
       uses: actions/upload-artifact@v1
       with:
         name: pass_sbom_results
-        path: sbom_results/results_cyclonedx.xml
+        path: results_cyclonedx.xml
 
   archive-build:
     needs: [build]
