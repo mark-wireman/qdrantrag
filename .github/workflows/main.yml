@@ -35,14 +35,60 @@ jobs:
         api-key: ${{ secrets.BC_API_KEY }}
         framework: sca_package
         output_format: cyclonedx
+        output_file_path: sbom_results.cylonedx
         soft_fail_on: true
         hard_fail_on: false
-        log_level: debug
-    - name: Archive code coverage results
-      uses: actions/upload-artifact@v4
-      with:
-        name: code-coverage
-        path: build_artifacts.zip
         
     - name: Create VectorGen Docker
       run: docker build -f dockerimages/vectordbgen_image -t vectordbimage:v1.0 .
+
+    - name: Create file status_build.txt and write the job status into it
+      if: always()
+      run: |
+        echo ${{ job.status }} > status_build.txt
+
+    - name: Upload file status_build.txt as an artifact
+      if: always()
+      uses: actions/upload-artifact@v1
+      with:
+        name: pass_status_build
+        path: status_build.txt
+
+    - name: Upload file status_build.txt as an artifact
+      if: always()
+      uses: actions/upload-artifact@v1
+      with:
+        name: pass_sbom_results
+        path: sbom_results.cyclonedx
+
+  archive-build:
+    needs: [build]
+    if: always()
+    name: Archive
+    runs-on:
+      labels: [self-hosted, Linux, X64]
+
+    steps:
+      - name: Download artifact pass_status_build
+        uses: actions/download-artifact@v1
+        with:
+          name: pass_status_build
+
+      - name: Download artifact pass_sbom_results
+        uses: actions/download-artifact@v1
+        with:
+          name: pass_sbom_results
+
+      - name: Set the statuses of build as output parameters
+        id: set_outputs
+        run: |
+          echo "::set-output name=status_build::$(<pass_status_build/status_build.txt)"
+          echo "::set-output name=sbom_results::$(<pass_sbom_results/sbom_results.cyclonedx)"
+
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-coverage
+          path: sbom_results.zip
+      
+    
