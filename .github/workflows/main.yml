@@ -35,7 +35,7 @@ jobs:
         api-key: ${{ secrets.BC_API_KEY }}
         framework: sca_package
         output_format: cyclonedx
-        output_file_path: sbom_results.cyclonedx
+        output_file_path: sbom_results
         soft_fail_on: true
         hard_fail_on: false
         
@@ -59,7 +59,7 @@ jobs:
       uses: actions/upload-artifact@v1
       with:
         name: pass_sbom_results
-        path: sbom_results.cyclonedx
+        path: sbom_results/results_cyclonedx.xml
 
   archive-build:
     needs: [build]
@@ -83,7 +83,7 @@ jobs:
         id: set_outputs
         run: |
           echo "::set-output name=status_build::$(<pass_status_build/status_build.txt)"
-          echo "::set-output name=sbom_results::$(<pass_sbom_results/sbom_results.cyclonedx)"
+          echo "::set-output name=sbom_results::$(<pass_sbom_results/results_cyclonedx.xml)"
 
       - name: Archive code coverage results
         uses: actions/upload-artifact@v4
