@@ -35,9 +35,10 @@ jobs:
         api-key: ${{ secrets.BC_API_KEY }}
         framework: sca_package
         output_format: cyclonedx
+        output_file_path: sbom
         soft_fail_on: MEDIUM
         hard_fail_on: CRITICAL
-        skip-download: --skip-download
+        skip_download: --skip-download
         
     - name: Create VectorGen Docker
       run: docker build -f dockerimages/vectordbgen_image -t vectordbimage:v1.0 .
@@ -59,7 +60,7 @@ jobs:
       uses: actions/upload-artifact@v1
       with:
         name: pass_sbom_results
-        path: results_cyclonedx.xml
+        path: sbom/results_cyclonedx.xml
 
   archive-build:
     needs: [build]
