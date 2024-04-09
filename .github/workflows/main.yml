@@ -35,7 +35,8 @@ jobs:
         api-key: ${{ secrets.BC_API_KEY }}
         framework: sca_package
         output_format: cyclonedx
-        soft_fail_on: true 
+        soft_fail: true
+        hard_fail: false
         log_level: debug
     - name: Archive code coverage results
       uses: actions/upload-artifact@v4
