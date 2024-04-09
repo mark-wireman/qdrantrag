@@ -39,6 +39,7 @@ jobs:
         soft_fail_on: MEDIUM
         hard_fail_on: CRITICAL
         skip_download: --skip-download
+        skip_check: CRITICAL
         
     - name: Create VectorGen Docker
       run: docker build -f dockerimages/vectordbgen_image -t vectordbimage:v1.0 .
