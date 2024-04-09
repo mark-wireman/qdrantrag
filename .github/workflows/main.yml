@@ -37,13 +37,12 @@ jobs:
         output_format: csv
         soft_fail_on: true
         output_file_path: output 
-        file: code-coverage.csv
         log_level: debug
     - name: Archive code coverage results
       uses: actions/upload-artifact@v4
       with:
         name: code-coverage
-        path: output/code-coverage.csv
+        path: output
         
     - name: Create VectorGen Docker
       run: docker build -f dockerimages/vectordbgen_image -t vectordbimage:v1.0 .
