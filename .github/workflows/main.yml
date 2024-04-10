@@ -72,7 +72,11 @@ jobs:
       with:
         name: pass_status_build
         path: status_build.txt
-
+    
+    - name: clean disk
+      run: |
+          sudo rm -rf sbom/results_cyclonedx.xml
+          
     - name: Upload SBOM results file as an artifact
       if: always()
       uses: actions/upload-artifact@v1
