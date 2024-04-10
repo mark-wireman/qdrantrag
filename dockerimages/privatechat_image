@@ -15,7 +15,7 @@ RUN apt-get install -y build-essential libxml2-dev libxslt1-dev zlib1g-dev g++ g
 RUN apt-get install -y pandoc poppler-utils libleptonica-dev tesseract-ocr libtesseract-dev python3-pil tesseract-ocr-eng tesseract-ocr-script-latn
 
 # A hack to get around the error when building tesseract-ocr
-COPY dependencies/longintrepr.h /usr/local/include/python3.11/longintrepr.h
+#COPY dependencies/longintrepr.h /usr/local/include/python3.11/longintrepr.h
 
 # Install required Python modules
 RUN pip install --upgrade pip
