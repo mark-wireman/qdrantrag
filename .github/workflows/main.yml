@@ -32,8 +32,20 @@ jobs:
       labels: [self-hosted, Linux, X64]
 
     steps:
-    - name: Run Prisma Cloud 
+    - name: Run Prisma Cloud Scan 
       id: prisma-cloud
+      uses: bridgecrewio/checkov-action@master
+      env:
+        PRISMA_API_URL: https://api.prismacloud.io
+      with:
+        api-key: ${{ secrets.BC_API_KEY }}
+        soft_fail_on: MEDIUM
+        hard_fail_on: CRITICAL
+        skip_check: LOW
+        skip_download: --skip-download
+
+    - name: Run Prisma Cloud SCA Scan Only
+      id: prisma-cloud-sca
       uses: bridgecrewio/checkov-action@master
       env:
         PRISMA_API_URL: https://api.prismacloud.io
@@ -42,9 +54,6 @@ jobs:
         framework: sca_package
         output_format: cyclonedx
         output_file_path: sbom
-        soft_fail_on: MEDIUM
-        hard_fail_on: CRITICAL
-        skip_check: LOW
   
   Create_Docker_Images:
     needs: [build]
