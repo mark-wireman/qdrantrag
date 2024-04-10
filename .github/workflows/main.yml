@@ -65,18 +65,7 @@ jobs:
       labels: [self-hosted, Linux, X64]
 
     steps:
-    - name: Create file status_build.txt and write the job status into it
-      if: always()
-      run: |
-        echo ${{ job.status }} > status_build.txt
-
-    - name: Upload file status_build.txt as an artifact
-      if: always()
-      uses: actions/upload-artifact@v1
-      with:
-        name: pass_status_build
-        path: status_build.txt
-          
+      
     - name: Upload SBOM results file as an artifact
       if: always()
       uses: actions/upload-artifact@v1
@@ -84,7 +73,7 @@ jobs:
         name: pass_sbom_results
         path: sbom/results_cyclonedx.xml
 
-  archive-build:
+  archive-scan-results:
     needs: [build,Prisma_Cloud_Scan,Create_Docker_Images,Collect_Artifacts]
     if: always()
     name: Archive
@@ -92,11 +81,7 @@ jobs:
       labels: [self-hosted, Linux, X64]
 
     steps:
-      - name: Download artifact pass_status_build
-        uses: actions/download-artifact@v1
-        with:
-          name: pass_status_build
-
+      
       - name: Download artifact pass_sbom_results
         uses: actions/download-artifact@v1
         with:
@@ -105,13 +90,7 @@ jobs:
       - name: Set the statuses of build as output parameters
         id: set_outputs
         run: |
-          echo "::set-output name=status_build::$(<pass_status_build/status_build.txt)"
           echo "::set-output name=sbom_results::$(<pass_sbom_results/results_cyclonedx.xml)"
 
-      - name: Archive code coverage results
-        uses: actions/upload-artifact@v4
-        with:
-          name: code-coverage
-          path: sbom_results.zip
       
     
