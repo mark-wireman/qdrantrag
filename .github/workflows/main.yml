@@ -25,7 +25,13 @@ jobs:
         
     - name: Checkout repo
       uses: actions/checkout@v2
+   
+  Prisma_Cloud_Scan:
+    needs: [build]
+    runs-on:
+      labels: [self-hosted, Linux, X64]
 
+    steps:
     - name: Run Prisma Cloud 
       id: prisma-cloud
       uses: bridgecrewio/checkov-action@master
@@ -38,12 +44,23 @@ jobs:
         output_file_path: sbom
         soft_fail_on: MEDIUM
         hard_fail_on: CRITICAL
-        skip_download: --skip-download
-        skip_check: CRITICAL
-        
+        skip_check: LOW
+  
+  Create_Docker_Images:
+    needs: [build]
+    runs-on:
+      labels: [self-hosted, Linux, X64]
+
+    steps:      
     - name: Create VectorGen Docker
       run: docker build -f dockerimages/vectordbgen_image -t vectordbimage:v1.0 .
 
+  Collect_Artifacts:
+    needs: [build, Prisma_Cloud_Scan, Create_Docker_Images]
+    runs-on:
+      labels: [self-hosted, Linux, X64]
+
+    steps:
     - name: Create file status_build.txt and write the job status into it
       if: always()
       run: |
@@ -64,7 +81,7 @@ jobs:
         path: sbom/results_cyclonedx.xml
 
   archive-build:
-    needs: [build]
+    needs: [build,Prisma_Cloud_Scan,Create_Docker_Images,Collect_Artifacts]
     if: always()
     name: Archive
     runs-on:
