@@ -38,7 +38,7 @@ jobs:
     steps:
     - name: Run Prisma Cloud Scan 
       id: prisma-cloud
-      uses: bridgecrewio/checkov-action@master
+      uses: bridgecrewio/checkov-action@v12.1347.0
       env:
         PRISMA_API_URL: https://api.prismacloud.io
       with:
