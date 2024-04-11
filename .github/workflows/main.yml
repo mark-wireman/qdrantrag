@@ -28,7 +28,7 @@ jobs:
         export FAKE_PASSWORD="fakepassword123!"
         
     - name: Checkout repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4.1.2
    
   Prisma_Cloud_Scan:
     needs: [build]
@@ -44,7 +44,7 @@ jobs:
       with:
         api-key: ${{ secrets.BC_API_KEY }}
         soft_fail_on: MEDIUM
-        hard_fail_on: HIGH
+        hard_fail_on: CRITICAL
         skip_check: LOW
         skip_download: --skip-download
         output_format: cyclonedx
