@@ -38,7 +38,7 @@ jobs:
     steps:
     - name: Run Prisma Cloud Scan 
       id: prisma-cloud
-      uses: bridgecrewio/checkov-action@v12.1347.0
+      uses: bridgecrewio/checkov-action@master
       env:
         PRISMA_API_URL: https://api.prismacloud.io
       with:
@@ -51,7 +51,7 @@ jobs:
         output_file_path: sbom
 
   Create_Docker_Images:
-    needs: [build]
+    needs: [build, Prisma_Cloud_Scan]
     runs-on:
       labels: [self-hosted, Linux, X64]
 
@@ -68,7 +68,7 @@ jobs:
       
     - name: Upload SBOM results file as an artifact
       if: always()
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4.3.1
       with:
         name: pass_sbom_results
         path: sbom/results_cyclonedx.xml
@@ -83,7 +83,7 @@ jobs:
     steps:
       
       - name: Download artifact pass_sbom_results
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v4.1.4
         with:
           name: pass_sbom_results
 
