@@ -12,10 +12,7 @@ jobs:
       labels: [self-hosted, Linux, X64]
 
     steps:
-    - name: Set owner of working dir recurively (Linux)
-      if: ${{ inputs.build_platform == 'linux' }}
-      run: sudo chown -R $(whoami) .
-        
+    
     - name: Set up secret file
       env:
         MY_SECRET: ${{ secrets.BC_API_KEY }}
