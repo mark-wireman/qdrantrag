@@ -70,6 +70,7 @@ jobs:
         name: pass_sbom_results
         path: sbom/results_cyclonedx.xml
 
+
   archive-scan-results:
     needs: [build,Prisma_Cloud_Scan,Create_Docker_Images,Collect_Artifacts]
     if: always()
