@@ -1,0 +1,46 @@
+name: Prisma Vulns Scan
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+jobs:
+
+  build:
+    runs-on: 
+      labels: [self-hosted, Linux, X64]
+
+    steps:
+    
+    - name: Set up secret file
+      env:
+        MY_SECRET: ${{ secrets.BC_API_KEY }}
+      run:
+        echo $MY_SECRET >> /home/mwireman/secrets.txt
+    
+    - name: Set Secret as variable
+      run:
+        export FAKE_USERNAME="fakename"
+        export FAKE_PASSWORD="fakepassword123!"
+        
+    - name: Checkout repo
+      uses: actions/checkout@v4.1.2
+   
+  Prisma_Cloud_Scan:
+    needs: [build]
+    runs-on:
+      labels: [self-hosted, Linux, X64]
+
+    steps:
+    - name: Run Prisma Cloud Scan 
+      id: prisma-cloud
+      uses: bridgecrewio/checkov-action@master
+      env:
+        PRISMA_API_URL: https://api.prismacloud.io
+      with:
+        api-key: ${{ secrets.BC_API_KEY }}
+        soft_fail_on: MEDIUM
+        hard_fail_on: HIGH
+        skip_check: LOW
+  
